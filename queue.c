@@ -29,7 +29,7 @@ struct list_head *q_new()
 void q_free(struct list_head *l) {}
 
 /*
- * Allocate space for new element.
+ * Allocate space for new element and copy the string to it.
  * Return NULL if could not allocate space.
  */
 element_t *q_new_element(char *s)
