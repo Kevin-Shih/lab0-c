@@ -67,6 +67,9 @@ element_t *q_new_element(char *s)
  */
 bool q_insert_head(struct list_head *head, char *s)
 {
+    if (!head)
+        return false;
+
     element_t *ele = q_new_element(s);
     if (!ele)
         return false;
@@ -84,6 +87,9 @@ bool q_insert_head(struct list_head *head, char *s)
  */
 bool q_insert_tail(struct list_head *head, char *s)
 {
+    if (!head)
+        return false;
+
     element_t *ele = q_new_element(s);
     if (!ele)
         return false;
@@ -193,6 +199,9 @@ void q_swap(struct list_head *head)
  */
 void q_reverse(struct list_head *head)
 {
+    if (!head)
+        return;
+
     struct list_head *node, *safe;
 
     list_for_each_safe (node, safe, head) {
