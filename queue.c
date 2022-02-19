@@ -218,6 +218,19 @@ bool q_delete_dup(struct list_head *head)
 void q_swap(struct list_head *head)
 {
     // https://leetcode.com/problems/swap-nodes-in-pairs/
+    if (!head || q_size(head) < 2)
+        return;  // Queue is NULL or less than 2 node
+
+    for (struct list_head *slow = head->next, *fast = head->next->next;
+         fast != head && fast != head->next;
+         slow = slow->next, fast = slow->next) {
+        slow->prev->next = fast;
+        fast->next->prev = slow;
+        slow->next = fast->next;
+        fast->prev = slow->prev;
+        slow->prev = fast;
+        fast->next = slow;
+    }
 }
 
 /*
