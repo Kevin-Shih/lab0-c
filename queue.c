@@ -286,16 +286,16 @@ void q_reverse(struct list_head *head)
 
 /*
  * Merge 2 sorted queue
- * Design singly linked list
+ * Designed for singly linked list
  * Repair prev link and circular after merge (for doubly circular linked list)
- * Return the head if success otherwise return NULL
+ * Return the head if success
  */
-struct list_head *merge_2_Queue(struct list_head *L1, struct list_head *L2)
+struct list_head *merge_2_queue(struct list_head *L1, struct list_head *L2)
 {
     struct list_head *head = NULL, **ptr = &head, **node = NULL;
     for (; L1 && L2; ptr = &(*ptr)->next, *node = (*node)->next) {
         node = strcmp(list_entry(L1, element_t, list)->value,
-                      list_entry(L2, element_t, list)->value) < 0
+                      list_entry(L2, element_t, list)->value) <= 0
                    ? &L1
                    : &L2;
         *ptr = *node;
@@ -305,37 +305,42 @@ struct list_head *merge_2_Queue(struct list_head *L1, struct list_head *L2)
 }
 
 /*
+ * Recursively merge sort a queue
+ */
+struct list_head *merge_sort(struct list_head *head)
+{
+    if (!head || !head->next)
+        return head;
+
+    struct list_head *slow = head;
+    for (struct list_head *fast = head->next; fast && fast->next;
+         fast = fast->next->next)
+        slow = slow->next;
+
+    struct list_head *mid = slow->next;
+    slow->next = NULL;
+    struct list_head *left = merge_sort(head), *right = merge_sort(mid);
+    return merge_2_queue(left, right);
+}
+
+/*
  * Sort elements of queue in ascending order
  * No effect if q is NULL or empty. In addition, if q has only one
  * element, do nothing.
  */
 void q_sort(struct list_head *head)
 {
-    if (!head || q_size(head) < 2)
+    if (!head || list_empty(head) || list_is_singular(head))
         return;  // Queue is NULL or less than 2 node
 
-    // devide
-    int queueSize = 0;
-    struct list_head *queue[10000] = {NULL};
-    for (struct list_head *tmp = head->next->next; tmp != head->next;
-         tmp = tmp->next) {
-        tmp->prev->next = NULL;
-        tmp->prev->prev = NULL;
-        queue[queueSize++] = tmp->prev;
-    }
+    // mark queue's tail
+    head->prev->next = NULL;
+    head->next = merge_sort(head->next);
 
-    // merge and sort
-    while (queueSize > 1) {
-        for (int i = 0, j = queueSize - 1; i < j; i++, j--)
-            queue[i] = merge_2_Queue(queue[i], queue[j]);
-        queueSize = (queueSize + 1) / 2;
-    }
-
-    // repair prev links and circular
-    head->next = queue[0];
-    struct list_head *tmp = head;
-    for (; tmp->next != NULL; tmp = tmp->next)
-        tmp->next->prev = tmp;
-    tmp->next = head;
-    head->prev = tmp;
+    // repair prev links and make it circular
+    struct list_head *ptr;
+    for (ptr = head; ptr->next; ptr = ptr->next)
+        ptr->next->prev = ptr;
+    ptr->next = head;
+    head->prev = ptr;
 }
