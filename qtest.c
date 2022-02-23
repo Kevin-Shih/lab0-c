@@ -76,6 +76,25 @@ static const char charset[] = "abcdefghijklmnopqrstuvwxyz";
 /* Forward declarations */
 static bool show_queue(int vlevel);
 
+void q_shuffle(struct list_head *head)
+{
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;  // Queue is NULL or less than 2 node
+
+    int n = q_size(head);
+    struct list_head *dest = head, *cur;
+    srand(time(NULL));
+    for (int i = n - 1, rand_num; i > 0; i--) {
+        cur = head->next;
+        rand_num = rand() % (i + 1);
+        for (int j = 0; j < rand_num; j++)
+            cur = cur->next;
+        list_move_tail(dest->prev, cur);
+        list_move_tail(cur, dest);
+        dest = dest->prev;
+    }
+}
+
 static bool do_free(int argc, char *argv[])
 {
     if (argc != 1) {
@@ -682,6 +701,25 @@ static bool do_swap(int argc, char *argv[])
     return !error_check();
 }
 
+static bool do_shuffle(int argc, char *argv[])
+{
+    if (argc != 1) {
+        report(1, "%s takes no arguments", argv[0]);
+        return false;
+    }
+
+    if (!l_meta.l)
+        report(3, "Warning: Try to access null queue");
+    error_check();
+
+    if (exception_setup(true))
+        q_shuffle(l_meta.l);
+    exception_cancel();
+
+    show_queue(3);
+    return !error_check();
+}
+
 static bool is_circular()
 {
     struct list_head *cur = l_meta.l->next;
@@ -795,6 +833,7 @@ static void console_init()
         dedup, "                | Delete all nodes that have duplicate string");
     ADD_COMMAND(swap,
                 "                | Swap every two adjacent nodes in queue");
+    ADD_COMMAND(shuffle, "                | Shuffle every nodes in queue");
     add_param("length", &string_length, "Maximum length of displayed string",
               NULL);
     add_param("malloc", &fail_probability, "Malloc failure probability percent",
