@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "cmp_count.h"
 #include "harness.h"
 #include "queue.h"
 
@@ -294,6 +295,7 @@ struct list_head *merge_2_queue(struct list_head *L1, struct list_head *L2)
 {
     struct list_head *head = NULL, **ptr = &head, **node = NULL;
     for (; L1 && L2; ptr = &(*ptr)->next, *node = (*node)->next) {
+        cmp_count++;
         node = strcmp(list_entry(L1, element_t, list)->value,
                       list_entry(L2, element_t, list)->value) <= 0
                    ? &L1
@@ -332,7 +334,7 @@ void q_sort(struct list_head *head)
 {
     if (!head || list_empty(head) || list_is_singular(head))
         return;  // Queue is NULL or less than 2 node
-
+    cmp_count = 0;
     // mark queue's tail
     head->prev->next = NULL;
     head->next = merge_sort(head->next);

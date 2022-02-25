@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <getopt.h>
+#include <math.h>
 #include <signal.h>
 #include <spawn.h>
 #include <stdio.h>
@@ -12,6 +13,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include "cmp_count.h"
 #include "dudect/fixture.h"
 #include "list.h"
 
@@ -76,6 +78,7 @@ static const char charset[] = "abcdefghijklmnopqrstuvwxyz";
 /* Forward declarations */
 static bool show_queue(int vlevel);
 
+int cmp_count = 0;
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
@@ -107,6 +110,7 @@ merge(void *priv, list_cmp_func_t cmp, struct list_head *a, struct list_head *b)
 
     for (;;) {
         /* if equal, take 'a' -- important for sort stability */
+        cmp_count++;
         if (cmp(priv, a, b) <= 0) {
             *tail = a;
             tail = &a->next;
@@ -147,6 +151,7 @@ __attribute__((nonnull(2, 3, 4, 5))) static void merge_final(
 
     for (;;) {
         /* if equal, take 'a' -- important for sort stability */
+        cmp_count++;
         if (cmp(priv, a, b) <= 0) {
             tail->next = a;
             a->prev = tail;
@@ -176,8 +181,10 @@ __attribute__((nonnull(2, 3, 4, 5))) static void merge_final(
          * element comparison is needed, so the client's cmp()
          * routine can invoke cond_resched() periodically.
          */
-        if (unlikely(!++count))
+        if (unlikely(!++count)) {
+            cmp_count++;
             cmp(priv, b, b);
+        }
         b->prev = tail;
         tail = b;
         b = b->next;
@@ -194,11 +201,10 @@ __attribute__((nonnull(2, 3))) void list_sort(void *priv,
                                               list_cmp_func_t cmp)
 {
     struct list_head *list = head->next, *pending = NULL;
-    size_t count = 0; /* Count of pending */
-
+    size_t count = 0;       /* Count of pending */
     if (list == head->prev) /* Zero or one elements */
         return;
-
+    cmp_count = 0;
     /* Convert to a null-terminated singly-linked list. */
     head->prev->next = NULL;
 
@@ -1067,6 +1073,40 @@ static bool is_circular()
     return true;
 }
 
+static bool do_avg_k(int argc, char *argv[])
+{
+    if (argc != 3) {
+        report(1, "%s needs 2 arguments", argv[0]);
+        return false;
+    }
+    list_cmp_func_t list_cmp_func = &cmp_func;
+    if (l_meta.l)
+        q_free(l_meta.l);
+    int big_n = (int) (atoi(argv[2]) * 1.25);
+    double avg_k = 0;
+    for (int n = atoi(argv[2]); n < big_n; n++) {
+        l_meta.l = q_new();
+        for (int j = 0; j < n; j++) {
+            char randstr_buf[MAX_RANDSTR_LEN];
+            fill_rand_string(randstr_buf, sizeof(randstr_buf));
+            q_insert_head(l_meta.l, randstr_buf);
+        }
+
+        if (strcmp(argv[1], "lksort") == 0)
+            list_sort(NULL, l_meta.l, list_cmp_func);
+        else
+            q_sort(l_meta.l);
+
+
+        avg_k += log2(n) - (double) (cmp_count - 1) / n;
+        q_free(l_meta.l);
+    }
+    l_meta.l = NULL;
+    avg_k /= (big_n - atoi(argv[2]));
+    printf("K = %f\n", avg_k);
+    return true;
+}
+
 static bool show_queue(int vlevel)
 {
     bool ok = true;
@@ -1156,6 +1196,9 @@ static void console_init()
     ADD_COMMAND(sort, "                | Sort queue in ascending order");
     ADD_COMMAND(lksort,
                 "          | Linux kernel sort queue in ascending order");
+    ADD_COMMAND(avg_k,
+                " lksort/sort n  | Get average K value of lksort/sort sorting "
+                "size n to 1.25 * n queue (n should be 2^k)");
     ADD_COMMAND(
         size, " [n]            | Compute queue size n times (default: n == 1)");
     ADD_COMMAND(show, "                | Show queue contents");
