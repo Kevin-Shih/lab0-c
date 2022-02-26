@@ -1,11 +1,11 @@
 /* Implementation of simple command-line interface */
 
 #include "console.h"
-
 #include <ctype.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <netinet/in.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "tiny_web.h"
 
 #include "report.h"
 
@@ -416,10 +417,10 @@ void init_cmd()
     add_param("verbose", &verblevel, "Verbosity level", NULL);
     add_param("error", &err_limit, "Number of errors until exit", NULL);
     add_param("echo", &echo, "Do/don't echo commands", NULL);
-
     init_in();
     init_time(&last_time);
     first_time = last_time;
+    listenfd = 0;
 }
 
 /* Create new buffer for named file.
@@ -645,11 +646,16 @@ bool run_console(char *infile_name)
 
     if (!has_infile) {
         char *cmdline;
+        extern int connfd;
         while ((cmdline = linenoise(prompt)) != NULL) {
             interpret_cmd(cmdline);
             linenoiseHistoryAdd(cmdline);       /* Add to the history. */
             linenoiseHistorySave(HISTORY_FILE); /* Save the history on disk. */
             linenoiseFree(cmdline);
+            if (connfd) {
+                close(connfd);
+                connfd = 0;
+            }
         }
     } else {
         while (!cmd_done())

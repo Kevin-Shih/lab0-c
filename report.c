@@ -18,6 +18,7 @@ static FILE *verbfile = NULL;
 static FILE *logfile = NULL;
 
 int verblevel = 0;
+extern int connfd;
 static void init_files(FILE *efile, FILE *vfile)
 {
     errfile = efile;
@@ -103,6 +104,17 @@ void report(int level, char *fmt, ...)
         fflush(verbfile);
         va_end(ap);
 
+        if (connfd) {
+            int bufsize = 1024;
+            char buf[bufsize];
+            va_start(ap, fmt);
+            vsnprintf(buf, bufsize, fmt, ap);
+            va_end(ap);
+            if (write(connfd, buf, strlen(buf)) < 0)
+                printf("Write web error");
+            if (write(connfd, "\n", 1) < 0)
+                printf("Write web error");
+        }
         if (logfile) {
             va_start(ap, fmt);
             vfprintf(logfile, fmt, ap);
@@ -125,6 +137,15 @@ void report_noreturn(int level, char *fmt, ...)
         fflush(verbfile);
         va_end(ap);
 
+        if (connfd) {
+            int bufsize = 1024;
+            char buf[bufsize];
+            va_start(ap, fmt);
+            vsnprintf(buf, bufsize, fmt, ap);
+            va_end(ap);
+            if (write(connfd, buf, strlen(buf)) < 0)
+                printf("Write web error");
+        }
         if (logfile) {
             va_start(ap, fmt);
             vfprintf(logfile, fmt, ap);

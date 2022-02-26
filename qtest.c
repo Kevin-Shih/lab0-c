@@ -1,8 +1,10 @@
 /* Implementation of testing code for queue code */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include <math.h>
+#include <netinet/in.h>
 #include <signal.h>
 #include <spawn.h>
 #include <stdio.h>
@@ -16,6 +18,7 @@
 #include "cmp_count.h"
 #include "dudect/fixture.h"
 #include "list.h"
+#include "tiny_web.h"
 
 /* Our program needs to use regular malloc/free */
 #define INTERNAL 1
@@ -50,7 +53,6 @@
 #define BIG_LIST 30
 static int big_list_size = BIG_LIST;
 
-
 /* Global variables */
 
 /* List being tested */
@@ -79,6 +81,7 @@ static const char charset[] = "abcdefghijklmnopqrstuvwxyz";
 static bool show_queue(int vlevel);
 
 int cmp_count = 0;
+int listenfd = 0;
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
@@ -1107,6 +1110,19 @@ static bool do_avg_k(int argc, char *argv[])
     return true;
 }
 
+static bool do_web(int argc, char *argv[])
+{
+    if (listenfd) {
+        report(3, "web already launched.");
+        return false;
+    } else {
+        tiny_create(argc, argv);
+        int flags = fcntl(listenfd, F_GETFL);
+        fcntl(listenfd, F_SETFL, flags | O_NONBLOCK);
+        return true;
+    }
+}
+
 static bool show_queue(int vlevel)
 {
     bool ok = true;
@@ -1195,7 +1211,7 @@ static void console_init()
     ADD_COMMAND(reverse, "                | Reverse queue");
     ADD_COMMAND(sort, "                | Sort queue in ascending order");
     ADD_COMMAND(lksort,
-                "          | Linux kernel sort queue in ascending order");
+                "                | Linux kernel sort queue in ascending order");
     ADD_COMMAND(avg_k,
                 " lksort/sort n  | Get average K value of lksort/sort sorting "
                 "size n to 1.25 * n queue (n should be 2^k)");
@@ -1208,6 +1224,7 @@ static void console_init()
     ADD_COMMAND(swap,
                 "                | Swap every two adjacent nodes in queue");
     ADD_COMMAND(shuffle, "                | Shuffle every nodes in queue");
+    ADD_COMMAND(web, "                | Open web service");
     add_param("length", &string_length, "Maximum length of displayed string",
               NULL);
     add_param("malloc", &fail_probability, "Malloc failure probability percent",
@@ -1361,7 +1378,6 @@ int main(int argc, char *argv[])
     if (!infile_name) {
         /* Trigger call back function(auto completion) */
         linenoiseSetCompletionCallback(completion);
-
         linenoiseHistorySetMaxLen(HISTORY_LEN);
         linenoiseHistoryLoad(HISTORY_FILE); /* Load the history at startup */
     }
