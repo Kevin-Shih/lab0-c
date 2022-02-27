@@ -177,6 +177,7 @@ int connfd;
 
 
 static void linenoiseAtExit(void);
+static void freeHistory(void);
 int linenoiseHistoryAdd(const char *line);
 static void refreshLine(struct linenoiseState *l);
 
@@ -1142,7 +1143,10 @@ static char *linenoiseNoTTY(void)
 {
     char *line = NULL;
     size_t len = 0, maxlen = 0;
-
+    if (!atexit_registered) {
+        atexit(freeHistory);
+        atexit_registered = 1;
+    }
     while (1) {
         if (len == maxlen) {
             if (maxlen == 0)
